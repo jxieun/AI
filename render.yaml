@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: jeonbongjun-ai
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false  # 수동으로 Render 대시보드에서 설정
+      - key: BACKEND_URL
+        value: https://jeonbongjun-backend.onrender.com
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8000
+      - key: CHROMA_DB_PATH
+        value: /opt/render/project/src/embeddings/chromadb
+      - key: LOG_LEVEL
+        value: INFO
+    disk:
+      name: chromadb-storage
+      mountPath: /opt/render/project/src/embeddings
+      sizeGB: 1
