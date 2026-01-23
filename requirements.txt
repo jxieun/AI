@@ -22,7 +22,7 @@ openai==2.6.0 # Using the version from your latest list; ensure it's compatible
 tiktoken==0.12.0
 
 # Vector Database (Pinecone - Permanent Free Tier)
-pinecone-client==3.0.0
+pinecone-client>=3.2.2
 langchain-pinecone==0.1.0
 
 # Data Loading & Parsing (for utils/data_loader.py and pykrx)
