@@ -6,19 +6,23 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      # OpenAI API Key
       - key: OPENAI_API_KEY
-        sync: false  # 수동으로 Render 대시보드에서 설정
+        sync: false  # Render 대시보드에서 수동 설정
+      # Pinecone API 설정
+      - key: PINECONE_API_KEY
+        sync: false  # Render 대시보드에서 수동 설정
+      - key: PINECONE_INDEX_NAME
+        value: robo-advisor-reports
+      - key: PINECONE_ENVIRONMENT
+        value: us-east-1
+      # Backend URL
       - key: BACKEND_URL
         value: https://jeonbongjun-backend.onrender.com
+      # FastAPI 설정
       - key: HOST
         value: 0.0.0.0
       - key: PORT
         value: 8000
-      - key: CHROMA_DB_PATH
-        value: /opt/render/project/src/embeddings/chromadb
       - key: LOG_LEVEL
         value: INFO
-    disk:
-      name: chromadb-storage
-      mountPath: /opt/render/project/src/embeddings
-      sizeGB: 1

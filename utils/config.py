@@ -13,11 +13,13 @@ class Settings(BaseSettings):
     
     # FastAPI 서버 설정
     host: str = "0.0.0.0"  # 모든 네트워크 인터페이스에서 접근 가능
-    port: int = 8001  # 서버 포트 (Spring Boot는 8000)
+    port: int = 8000  # 서버 포트
     debug: bool = True  # 개발 모드 활성화
     
-    # ChromaDB 설정
-    chroma_db_path: str = "./embeddings/chromadb"  # 벡터 DB 저장 경로
+    # Pinecone 설정 (Permanent Free Tier)
+    pinecone_api_key: str  # Pinecone API 키 (필수)
+    pinecone_index_name: str = "robo-advisor-reports"  # Pinecone Index 이름
+    pinecone_environment: str = "us-east-1"  # Pinecone 환경 (지역)
     
     # 로깅 설정
     log_level: str = "INFO"  # 로그 레벨
