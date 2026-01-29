@@ -202,8 +202,8 @@ async def fetch_dashboard_data_from_yfinance():
             hist = ticker_obj.history(period="1mo")
             
             if hist.empty:
-                indices_data[name] = {"value": 0, "changeValue": 0, "changeRate": 0, "chartData": []}
-                continue
+                logger.warning(f"yfinance {name} data empty - raising Exception to trigger fallback")
+                raise Exception("Blocked")
 
             latest = hist.iloc[-1]
             prev = hist.iloc[-2]
@@ -245,6 +245,10 @@ async def fetch_dashboard_data_from_yfinance():
                     })
             except:
                 continue
+
+        # 만약 데이터 수집이 너무 적으면 (차단된 경우) -> 예외 발생시켜서 Simulation Mode로 이동
+        if len(top_market_cap) < 3:
+             raise Exception("Not enough data - Blocked")
 
         # Top Gainers/Losers/Volume은 yfinance로 구하기 어렵거나 API call이 너무 많음
         # 따라서 Top Cap 데이터에서 정렬하여 근사치로 제공하거나 비워둠
