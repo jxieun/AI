@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     
     # OpenAI API 설정
     openai_api_key: str  # OpenAI API 키 (필수)
-    openai_model: str = "gpt-4-turbo-preview"  # 기본 모델
+    openai_model: str = "gpt-4o-mini"  # 기본 모델 (가성비 최적화)
     
     # FastAPI 서버 설정
     host: str = "0.0.0.0"  # 모든 네트워크 인터페이스에서 접근 가능
