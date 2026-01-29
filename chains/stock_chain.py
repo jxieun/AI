@@ -9,6 +9,7 @@ from utils.logger import logger
 from pykrx import stock
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
+import yfinance as yf # Fallback data source
 
 def get_latest_trading_day() -> datetime:
     """
@@ -106,8 +107,52 @@ def get_stock_data_from_pykrx(stock_code: str) -> Dict[str, Any]:
         return result
         
     except Exception as e:
-        logger.error(f"pykrx 주가 조회 실패 ({stock_code}): {e}", exc_info=True)
-        return {}
+        logger.error(f"pykrx 주가 조회 실패 ({stock_code}): {e}")
+        logger.info(f"⚠️ Fallback: {stock_code}에 대해 yfinance 시도")
+        return get_stock_data_from_yfinance(stock_code)
+
+def get_stock_data_from_yfinance(stock_code: str) -> Dict[str, Any]:
+    """yfinance를 통한 주가 조회 Fallback"""
+    suffixes = [".KS", ".KQ"]
+    
+    for suffix in suffixes:
+        try:
+            yf_ticker = stock_code + suffix
+            stock_obj = yf.Ticker(yf_ticker)
+            # 2일치 데이터로 등락률 계산
+            hist = stock_obj.history(period="5d")
+            
+            if len(hist) < 1:
+                continue
+                
+            latest = hist.iloc[-1]
+            price = int(latest["Close"])
+            
+            # 전일 대비 등락률 계산
+            if len(hist) >= 2:
+                prev = hist.iloc[-2]["Close"]
+                change_pct = round(((price / prev) - 1) * 100, 2)
+            else:
+                change_pct = 0.0
+                
+            # 기본 정보
+            info = stock_obj.fast_info
+            
+            return {
+                "ticker": stock_code,
+                "name": f"{stock_code} (Yahoo)", # 종목명 조회 어려움
+                "price": price,
+                "change_pct": change_pct,
+                "volume": int(latest["Volume"]),
+                "open": int(latest["Open"]),
+                "high": int(latest["High"]),
+                "low": int(latest["Low"]),
+                "date": datetime.now().strftime("%Y%m%d") # 최신 데이터 가정
+            }
+        except Exception:
+            continue
+            
+    return {}
 
 def analyze_sentiment(stock_data: Dict[str, Any]) -> str:
     """
