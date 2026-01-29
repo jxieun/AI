@@ -392,6 +392,40 @@ async def get_stock_details(request: TickersRequest):
         logger.error(f"개별 종목 상세 정보 조회 중 오류: {e}")
         raise HTTPException(status_code=500, detail="개별 종목 정보를 가져오는 중 오류가 발생했습니다.")
 
+@router.get("/stock/search")
+async def search_stock(query: str):
+    """종목 검색 (이름 -> 티커)"""
+    logger.info(f"종목 검색 요청: {query}")
+    
+    # 주요 종목 매핑 (Static Data)
+    stock_map = [
+        {"name": "삼성전자", "ticker": "005930"},
+        {"name": "SK하이닉스", "ticker": "000660"},
+        {"name": "LG에너지솔루션", "ticker": "373220"},
+        {"name": "삼성바이오로직스", "ticker": "207940"},
+        {"name": "현대차", "ticker": "005380"},
+        {"name": "기아", "ticker": "000270"},
+        {"name": "셀트리온", "ticker": "068270"},
+        {"name": "POSCO홀딩스", "ticker": "005490"},
+        {"name": "NAVER", "ticker": "035420"},
+        {"name": "카카오", "ticker": "035720"},
+        {"name": "LG화학", "ticker": "051910"},
+        {"name": "삼성SDI", "ticker": "006400"},
+        {"name": "KB금융", "ticker": "105560"},
+        {"name": "신한지주", "ticker": "055550"},
+        {"name": "포스코퓨처엠", "ticker": "003670"},
+        {"name": "현대모비스", "ticker": "012330"},
+        {"name": "하나금융지주", "ticker": "086790"},
+        {"name": "LG전자", "ticker": "066570"},
+        {"name": "메리츠금융지주", "ticker": "138040"},
+        {"name": "SK", "ticker": "034730"}
+    ]
+    
+    # 검색 로직 (단순 포함 여부)
+    results = [s for s in stock_map if query in s["name"] or query in s["ticker"]]
+    
+    return results
+
 @router.get("/stock/{ticker}")
 async def get_stock_detail(ticker: str):
     """특정 종목의 최신 시세 정보"""
