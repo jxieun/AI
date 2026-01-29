@@ -10,6 +10,7 @@ from utils.logger import logger
 from utils.spring_client import spring_client
 import re
 import asyncio
+import openai # 직접 예외 처리를 위해 추가
 
 async def classify_question(question: str) -> dict:
     """
@@ -83,7 +84,12 @@ stock: none
     chain = prompt | llm | StrOutputParser()
     
     # 실행
-    result = chain.invoke({"question": question}).strip()
+    try:
+        result = chain.invoke({"question": question}).strip()
+    except Exception as e:
+        logger.error(f"분류 LLM 호출 실패 (RateLimit 등): {e}")
+        logger.info("⚠️ Fallback: 규칙 기반(Rule-based) 분류기 작동")
+        return await rule_based_classification(question)
     
     # ★ 결과 파싱
     category_match = re.search(r'category:\s*(\w+)', result)
@@ -134,3 +140,48 @@ async def get_stock_code(stock_name: str) -> str:
     }
     
     return stock_map.get(stock_name, None)
+
+async def rule_based_classification(question: str) -> dict:
+    """
+    LLM 사용 불가 시(429 에러 등) 규칙 기반 분류
+    """
+    q = question.replace(" ", "")
+    
+    # 1. 종목명 추출 (간단한 매핑)
+    stock_map = {
+        "삼성전자": "005930", "삼전": "005930",
+        "네이버": "035420", "NAVER": "035420",
+        "카카오": "035720",
+        "현대차": "005380",
+        "하이닉스": "000660", "SK하이닉스": "000660",
+        "LG엔솔": "373220", "LG에너지솔루션": "373220",
+        "포스코": "005490", "POSCO홀딩스": "005490", 
+        "삼성바이오": "207940", "로직스": "207940"
+    }
+    
+    stock_code = None
+    extracted_name = "none"
+    for name, code in stock_map.items():
+        if name in q:
+            stock_code = code
+            extracted_name = name
+            break
+            
+    # 2. 카테고리 분류
+    if stock_code:
+        if "리포트" in q or "목표가" in q or "의견" in q:
+            category = "analyst_report"
+        else:
+            category = "stock_price"
+    elif "환율" in q or "금리" in q or "경제" in q or "시장" in q:
+        category = "economic_indicator"
+    else:
+        # 종목은 없지만 '추천'이나 '전망' 단어가 있으면 general, 아니면 general
+        category = "general"
+        
+    logger.info(f"규칙 기반 분류 결과: category={category}, stock={extracted_name}")
+    
+    return {
+        "category": category,
+        "stock_code": stock_code
+    }

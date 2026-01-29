@@ -59,7 +59,10 @@ def query_general_advice(question: str):
     chain = prompt | llm | StrOutputParser()
     
     # 실행
-    answer = chain.invoke({"question": question})
-    
-    logger.info("일반 상담 답변 생성 완료")
-    return answer
+    try:
+        answer = chain.invoke({"question": question})
+        logger.info("일반 상담 답변 생성 완료")
+        return answer
+    except Exception as e:
+        logger.error(f"일반 상담 LLM 호출 실패: {e}")
+        return "죄송합니다. 현재 AI 서버 이용량이 많아(429 Error) 답변을 생성할 수 없습니다. 잠시 후 다시 시도해 주세요.\n\n(참고: 단순 주가 조회는 '삼성전자 주가'와 같이 종목명을 포함하여 질문하시면 조회 가능합니다.)"

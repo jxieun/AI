@@ -276,5 +276,18 @@ def query_stock_analysis(question: str, stock_code: str) -> str:
         return final_answer
         
     except Exception as e:
-        logger.error(f"주가 분석 LLM 호출 실패: {e}", exc_info=True)
-        return f"주가 데이터는 조회했으나 분석 중 오류가 발생했습니다: {str(e)}"
+        logger.error(f"주가 분석 LLM 호출 실패: {e}")
+        # LLM 실패 시(429 등)에도 데이터는 보여줌
+        fallback_answer = f"""
+[시장 감성: {sentiment}]
+
+죄송합니다. 현재 AI 분석량이 많아 상세 분석은 어렵지만, 데이터는 조회했습니다.
+
+■ {stock_data['name']} ({stock_data['ticker']})
+- 현재가: {stock_data['price']:,}원
+- 전일대비: {stock_data['change_pct']}%
+- 거래량: {stock_data['volume']:,}주
+
+(AI 분석 서버가 혼잡하여 단순 데이터만 제공합니다.)
+"""
+        return fallback_answer
