@@ -32,6 +32,7 @@ xlrd==2.0.2 # Needed by pandas/pykrx for older Excel files
 
 # Stock Market Data
 pykrx==1.0.51 # For market data APIs
+yfinance==0.2.36 # Fallback real data source
 
 # Common Dependencies (often needed by the libraries above)
 numpy==1.26.4 # Used by pandas, pykrx, chromadb, langchain

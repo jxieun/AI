@@ -7,6 +7,7 @@ import time
 import asyncio
 from pydantic import BaseModel
 from typing import List
+import yfinance as yf # Fallback data source
 
 router = APIRouter(
     prefix="/api",       
@@ -186,44 +187,90 @@ async def get_dashboard_data():
         logger.info("⚠️ Fallback: 목업(Mock) 데이터 반환. (Render IP 차단 가능성)")
         
         # 목업 데이터 반환
+        return await fetch_dashboard_data_from_yfinance()
+
+async def fetch_dashboard_data_from_yfinance():
+    """yfinance를 통한 Fallback 데이터 조회"""
+    try:
+        logger.info("⚠️ yfinance Fallback 데이터 조회 시작")
+        
+        # 1. 지수 데이터 (KOSPI, KOSDAQ)
+        indices_data = {}
+        for name, ticker in [("kospi", "^KS11"), ("kosdaq", "^KQ11")]:
+            ticker_obj = yf.Ticker(ticker)
+            # 1달치 데이터 조회 to verify chart data
+            hist = ticker_obj.history(period="1mo")
+            
+            if hist.empty:
+                indices_data[name] = {"value": 0, "changeValue": 0, "changeRate": 0, "chartData": []}
+                continue
+
+            latest = hist.iloc[-1]
+            prev = hist.iloc[-2]
+            
+            latest_val = latest['Close']
+            prev_val = prev['Close']
+            
+            chart_data = [{"value": val} for val in hist['Close'].tail(7).tolist()]
+
+            indices_data[name] = {
+                "value": round(latest_val, 2),
+                "changeValue": round(latest_val - prev_val, 2),
+                "changeRate": round((latest_val/prev_val - 1) * 100, 2),
+                "chartData": chart_data
+            }
+
+        # 2. 주요 종목 (Top Cap Proxy) - yfinance로 전체 시장 스캔은 느리므로 주요 대형주만 샘플링
+        major_tickers = {
+            "005930.KS": "삼성전자", "000660.KS": "SK하이닉스", 
+            "373220.KS": "LG에너지솔루션", "207940.KS": "삼성바이오로직스",
+            "005380.KS": "현대차", "000270.KS": "기아",
+            "068270.KS": "셀트리온", "005490.KS": "POSCO홀딩스",
+            "035420.KS": "NAVER", "003550.KS": "LG"
+        }
+        
+        top_market_cap = []
+        for ticker, name in major_tickers.items():
+            try:
+                data = yf.Ticker(ticker).history(period="2d")
+                if len(data) >= 2:
+                    current = data.iloc[-1]['Close']
+                    prev = data.iloc[-2]['Close']
+                    rate = (current/prev - 1) * 100
+                    top_market_cap.append({
+                        "code": ticker.replace(".KS", ""),
+                        "name": name,
+                        "price": current,
+                        "change_rate": round(rate, 2)
+                    })
+            except:
+                continue
+
+        # Top Gainers/Losers/Volume은 yfinance로 구하기 어렵거나 API call이 너무 많음
+        # 따라서 Top Cap 데이터에서 정렬하여 근사치로 제공하거나 비워둠
+        sorted_by_rate = sorted(top_market_cap, key=lambda x: x['change_rate'], reverse=True)
+        top_gainers = sorted_by_rate[:5]
+        top_losers = sorted(top_market_cap, key=lambda x: x['change_rate'])[:5]
+        
+        # Volume은 생략하거나 Cap 데이터 재사용
+        
         return {
-            "indices": {
-                "kospi": {"value": 2650.12, "changeValue": 12.34, "changeRate": 0.47, "chartData": [{"value": 2600}, {"value": 2610}, {"value": 2620}, {"value": 2630}, {"value": 2640}, {"value": 2645}, {"value": 2650.12}]},
-                "kosdaq": {"value": 850.55, "changeValue": -5.12, "changeRate": -0.60, "chartData": [{"value": 860}, {"value": 858}, {"value": 855}, {"value": 852}, {"value": 850}, {"value": 848}, {"value": 850.55}]}
+            "indices": indices_data,
+            "topGainers": top_gainers,
+            "topLosers": top_losers,
+            "topVolume": top_gainers, # 임시 대체
+            "topMarketCap": top_market_cap
+        }
+
+    except Exception as e:
+        logger.error(f"yfinance Fallback 실패: {e}")
+        # 진짜 최후의 목업
+        return {
+             "indices": {
+                "kospi": {"value": 0, "changeValue": 0, "changeRate": 0, "chartData": []},
+                "kosdaq": {"value": 0, "changeValue": 0, "changeRate": 0, "chartData": []}
             },
-            "topGainers": [
-                {"code": "005930", "name": "삼성전자(예시)", "price": 75000, "change_rate": 2.5},
-                {"code": "000660", "name": "SK하이닉스(예시)", "price": 142000, "change_rate": 1.8},
-                {"code": "035420", "name": "NAVER(예시)", "price": 210000, "change_rate": 1.2},
-                {"code": "035720", "name": "카카오(예시)", "price": 54000, "change_rate": 0.9},
-                {"code": "005380", "name": "현대차(예시)", "price": 240000, "change_rate": 0.5}
-            ],
-            "topLosers": [
-                {"code": "051910", "name": "LG화학(예시)", "price": 450000, "change_rate": -1.5},
-                {"code": "006400", "name": "삼성SDI(예시)", "price": 380000, "change_rate": -1.2},
-                {"code": "066570", "name": "LG전자(예시)", "price": 98000, "change_rate": -0.8},
-                {"code": "000270", "name": "기아(예시)", "price": 82000, "change_rate": -0.5},
-                {"code": "010130", "name": "고려아연(예시)", "price": 480000, "change_rate": -0.3}
-            ],
-            "topVolume": [
-                {"code": "005930", "name": "삼성전자(예시)", "volume": 12000000},
-                {"code": "000660", "name": "SK하이닉스(예시)", "volume": 5000000},
-                {"code": "042700", "name": "한미반도체(예시)", "volume": 3000000},
-                {"code": "001570", "name": "금양(예시)", "volume": 2500000},
-                {"code": "005935", "name": "삼성전자우(예시)", "volume": 2000000}
-            ],
-            "topMarketCap": [
-                 {"code": "005930", "name": "삼성전자(예시)", "price": 75000, "change_rate": 2.5},
-                 {"code": "000660", "name": "SK하이닉스(예시)", "price": 142000, "change_rate": 1.8},
-                 {"code": "373220", "name": "LG에너지솔루션(예시)", "price": 390000, "change_rate": -0.5},
-                 {"code": "207940", "name": "삼성바이오로직스(예시)", "price": 810000, "change_rate": 0.2},
-                 {"code": "005380", "name": "현대차(예시)", "price": 240000, "change_rate": 0.5},
-                 {"code": "000270", "name": "기아(예시)", "price": 82000, "change_rate": -0.5},
-                 {"code": "068270", "name": "셀트리온(예시)", "price": 180000, "change_rate": 1.1},
-                 {"code": "005490", "name": "POSCO홀딩스(예시)", "price": 440000, "change_rate": 0.8},
-                 {"code": "035420", "name": "NAVER(예시)", "price": 210000, "change_rate": 1.2},
-                 {"code": "003550", "name": "LG(예시)", "price": 95000, "change_rate": -0.1}
-            ]
+            "topGainers": [], "topLosers": [], "topVolume": [], "topMarketCap": []
         }
 
 async def fetch_top_gainers_data():
