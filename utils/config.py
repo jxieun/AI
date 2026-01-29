@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"  # 모든 네트워크 인터페이스에서 접근 가능
     port: int = 8000  # 서버 포트
     debug: bool = True  # 개발 모드 활성화
+
+    # Backend API URL (Env: BACKEND_URL)
+    backend_url: str = "http://backend-svc:8080" # Default for K8s
+
     
     # Pinecone 설정 (Permanent Free Tier)
     pinecone_api_key: str  # Pinecone API 키 (필수)

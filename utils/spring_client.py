@@ -91,5 +91,6 @@ class SpringBootClient:
 # 전역 클라이언트 인스턴스
 # ★ Kubernetes 환경에서는 "http://backend-svc:8080" 사용
 # ★ 로컬 개발 환경에서는 "http://localhost:8080" 사용
-spring_client = SpringBootClient(base_url="http://backend-svc:8080")
+# ★ Render 환경에서는 Env Var BACKEND_URL 사용
+spring_client = SpringBootClient(base_url=settings.backend_url)
 
