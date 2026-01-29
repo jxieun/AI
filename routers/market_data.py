@@ -382,8 +382,54 @@ async def get_stock_detail(ticker: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"종목 상세 조회 실패 ({ticker}): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"종목 상세 조회 실패 ({ticker}) - PyKrx: {e}")
+        logger.info(f"⚠️ Fallback: {ticker}에 대해 yfinance 시도")
+        return await fetch_stock_detail_from_yfinance(ticker)
+
+async def fetch_stock_detail_from_yfinance(ticker: str):
+    """yfinance를 통한 개별 종목 상세 정보 Fallback"""
+    suffixes = [".KS", ".KQ"]
+    
+    for suffix in suffixes:
+        try:
+            yf_ticker = ticker + suffix
+            stock_obj = yf.Ticker(yf_ticker)
+            # fast_info가 더 빠름
+            info = stock_obj.fast_info
+            
+            if info.last_price is None:
+                continue
+                
+            last_price = info.last_price
+            prev_close = info.previous_close
+            open_price = info.open
+            day_high = info.day_high
+            day_low = info.day_low
+            
+            # 없는 경우 0 처리
+            if not last_price: continue
+
+            change_pct = ((last_price / prev_close) - 1) * 100
+            
+            # 종목명은 info에서 가져오거나 못 가져오면 티커로 대체
+            # name = stock_obj.info.get("shortName", ticker) 
+            # yf.Ticker(..).info는 느리므로 생략하거나 필요시 추가
+
+            return {
+                "name": f"{ticker} (Yahoo)", # 헬퍼 함수 호출 어려우면 티커 표시
+                "ticker": ticker,
+                "price": int(last_price),
+                "changePct": round(change_pct, 2),
+                "ohlc": {
+                    "open": int(open_price) if open_price else 0,
+                    "high": int(day_high) if day_high else 0,
+                    "low": int(day_low) if day_low else 0,
+                }
+            }
+        except Exception:
+            continue
+            
+    raise HTTPException(status_code=500, detail="정보를 가져올 수 없습니다 (Backup 실패).")
 
 @router.get("/stock/{ticker}/chart")
 async def get_stock_chart(ticker: str):
@@ -398,5 +444,25 @@ async def get_stock_chart(ticker: str):
         
         return {"chart": chart_data}
     except Exception as e:
-        logger.error(f"종목 차트({ticker}) 조회 중 오류: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"종목 차트({ticker}) 조회 중 오류 - PyKrx: {e}")
+        logger.info(f"⚠️ Fallback: {ticker} 차트에 대해 yfinance 시도")
+        return await fetch_stock_chart_from_yfinance(ticker)
+
+async def fetch_stock_chart_from_yfinance(ticker: str):
+    suffixes = [".KS", ".KQ"]
+    for suffix in suffixes:
+        try:
+            yf_ticker = ticker + suffix
+            stock_obj = yf.Ticker(yf_ticker)
+            hist = stock_obj.history(period="1mo") # 1주 데이터지만 넉넉히 가져옴
+            
+            if hist.empty:
+                continue
+                
+            # 최근 7일치 정도만 필터링하거나 UI에 맞게 조정
+            chart_data = hist['Close'].tail(7).tolist()
+            return {"chart": chart_data}
+        except:
+            continue
+            
+    return {"chart": []}
