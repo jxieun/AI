@@ -461,9 +461,6 @@ async def fetch_stock_detail_from_yfinance(ticker: str):
         except Exception:
             continue
             
-        except Exception:
-            continue
-            
     # 최후의 수단: 목업 데이터 (에러 방지용)
     return {
         "name": f"{ticker} (Simulation)", 
@@ -508,9 +505,6 @@ async def fetch_stock_chart_from_yfinance(ticker: str):
             # 최근 7일치 정도만 필터링하거나 UI에 맞게 조정
             chart_data = hist['Close'].tail(7).tolist()
             return {"chart": chart_data}
-        except:
-            continue
-            
         except:
             continue
             
